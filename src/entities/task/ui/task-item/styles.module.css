@@ -1,0 +1,29 @@
+.Task_card {
+  background-color: rgba(var(--task-card-color), 0.1);
+  border-radius: 10px;
+
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+
+  display: flex;
+  padding: 8px 10px 6px 6px;
+  position: relative;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  transition: var(--speed);
+
+  &:hover {
+    background-color: rgba(var(--task-card-color), 0.5);
+  }
+
+  &.dragging {
+    opacity: 0;
+  }
+}
+
+.Task_card:last-child {
+  margin-bottom: 0;
+}
