@@ -1,19 +1,17 @@
-"use client";
-
 import clsx from "clsx";
 import {
   DetailedHTMLProps,
-  DragEvent,
   HTMLAttributes,
+  type PointerEvent as ReactPointerEvent,
   useRef,
-  useState,
+  useEffect,
 } from "react";
 import { observer } from "mobx-react";
 
 import { TaskItem } from "~/entities/task";
 import { taskStore } from "../model";
 import { TaskInput } from "../task-input";
-import { useTasksDnDStore } from "~/features/tasks-dnd/model";
+import isMouseOverElementRect from "~/shared/util/is-mouse-over-element-rect";
 
 type Props = DetailedHTMLProps<
   HTMLAttributes<HTMLDivElement>,
@@ -21,87 +19,226 @@ type Props = DetailedHTMLProps<
 > & {
   boardTitle: JSX.Element;
   boardId: string;
+  index: number;
 };
 
 export const TasksBoard = observer(
-  ({ boardTitle, boardId, className }: Props) => {
+  ({ boardTitle, boardId, className, index: boardIndex }: Props) => {
     const boardRef = useRef<HTMLDivElement>(null);
-    const destinationIndex = useRef<number>();
-    const [isDraggingOver, setIsDraggingOver] = useState(false);
-    const taskDnDStore = useTasksDnDStore();
+    const boardBoundingRect = useRef<DOMRect>();
+    const tasksContainerRef = useRef<HTMLDivElement>(null);
 
     const taskList =
-      taskStore.taskItems.find((board) => board.id === boardId)?.tasks ?? [];
+      taskStore.taskItems[boardIndex]?.tasks?.filter(
+        (task) => task.deletedAt === null
+      ) ?? [];
 
-    const handleDragOver = (e: DragEvent) => {
-      e.preventDefault();
-      setIsDraggingOver(true);
-      const children = [...boardRef.current!.querySelectorAll(".tasks > *")];
+    const detectPressButton = (e: ReactPointerEvent) => {
+      if ("buttons" in e) {
+        return e.buttons === 1;
+      }
 
-      let nextSibling = children.find((child) => {
-        let _child = child as HTMLElement;
+      let button = (e as any).which || (e as any).button;
 
-        const { top } = e.currentTarget.getBoundingClientRect();
+      return button === 1;
+    };
 
-        return e.clientY - top <= _child.offsetTop + _child.offsetHeight / 2;
+    const initializeDnDContainer = (
+      parentContainer: HTMLElement,
+      index: number
+    ) => {
+      const items = [...parentContainer.childNodes] as HTMLElement[];
+
+      const dragItem = items[index];
+      const itemsBelowDragItem = items.slice(index + 1);
+      const notDragItems = items.filter((_, i) => i !== index);
+
+      const dragBoundingRect = dragItem.getBoundingClientRect();
+      const marginBetweenItems = items[1]
+        ? items[1].getBoundingClientRect().top -
+          items[0].getBoundingClientRect().bottom
+        : 0;
+
+      const div = document.createElement("div");
+      div.id = "drag-item-temp";
+      div.style.width = dragBoundingRect.width + "px";
+      div.style.height = dragBoundingRect.height + "px";
+      div.style.pointerEvents = "none";
+
+      dragItem.style.position = "fixed";
+      dragItem.style.zIndex = "5000";
+      dragItem.style.width = `${dragBoundingRect.width}px`;
+      dragItem.style.height = `${dragBoundingRect.height}px`;
+      dragItem.style.top = `${dragBoundingRect.top}px`;
+      dragItem.style.left = `${dragBoundingRect.left}px`;
+      dragItem.style.cursor = "grabbing";
+
+      parentContainer.appendChild(div);
+
+      const distance = dragBoundingRect.height + marginBetweenItems;
+
+      itemsBelowDragItem.forEach((item) => {
+        item.style.transform = `translateY(${distance}px)`;
       });
 
-      const nextSiblingIndex = nextSibling?.getAttribute("data-index") ?? null;
-      destinationIndex.current = nextSiblingIndex
-        ? Number(nextSiblingIndex)
-        : undefined;
+      return {
+        items,
+        notDragItems,
+        currentDragItem: dragItem,
+        distance,
+        temporaryClonedElement: div,
+      };
     };
 
-    const handleDragLeave = (e: DragEvent) => {
-      setIsDraggingOver(false);
+    const onPointerUp = (e: any) => {
+      console.log(" POINTER UP");
+
+      document.body.onpointerup = null;
+      document.body.onpointermove = null;
+
+      document.body.releasePointerCapture(e.pointerId);
+      document.body.classList.remove("ptr-events-none");
     };
 
-    const handleDrop = (e: DragEvent) => {
-      e.preventDefault();
+    const handleDragItemStart = (e: ReactPointerEvent, index: number) => {
+      if (!detectPressButton(e)) return;
 
-      setIsDraggingOver(false);
+      const sourceIndex = index;
+      let destinationIndex: number | undefined;
 
-      const taskId = taskDnDStore.taskId;
-      const prevBoardId = taskDnDStore.boardId;
-      const sourceIndex = taskDnDStore.draggedIndex;
+      const container = tasksContainerRef.current;
+      if (container === null) return;
+      document.body.setPointerCapture(e.pointerId);
 
-      taskDnDStore.clearDraggedItem();
-      if (prevBoardId === boardId) {
-        if (sourceIndex === null || destinationIndex.current === undefined)
-          return;
-        taskStore.reorderTasks(sourceIndex, destinationIndex.current, boardId);
-        return;
-      }
-      if (taskId === null || prevBoardId === null) return;
+      document.body.classList.add("ptr-events-none");
 
-      taskStore.transferTask(
-        taskId,
-        prevBoardId,
-        boardId,
-        destinationIndex.current
-      );
+      const {
+        notDragItems,
+        currentDragItem,
+        distance,
+        items,
+        temporaryClonedElement,
+      } = initializeDnDContainer(container, index);
+
+      let x = e.clientX;
+      let y = e.clientY;
+
+      let boards: HTMLElement[] = [];
+      let transferingBoardIndex: number | null = null;
+
+      const dragMove = (e: PointerEvent) => {
+        const mouseX = e.clientX;
+        const mouseY = e.clientY;
+
+        const boardRect = boardBoundingRect.current;
+
+        if (!boardRect) return;
+
+        const posX = mouseX - x;
+        const posY = mouseY - y;
+
+        const isOverlap = isMouseOverElementRect(boardRect, mouseX, mouseY);
+
+        boards = [...document.querySelectorAll(".board")] as HTMLElement[];
+
+        if (isOverlap) {
+          notDragItems.forEach((item) => {
+            const rect1 = currentDragItem.getBoundingClientRect();
+            const rect2 = item.getBoundingClientRect();
+
+            let isOverlapping =
+              rect1.y < rect2.y + rect2.height / 2 &&
+              rect1.y + rect1.height / 2 > rect2.y;
+
+            if (isOverlapping) {
+              if (item.getAttribute("style")) {
+                item.style.transform = "";
+                destinationIndex = ++index;
+              } else {
+                item.style.transform = `translateY(${distance}px)`;
+                destinationIndex = --index;
+              }
+            }
+          });
+
+          boards.forEach((board) => {
+            board.classList.remove("border-white");
+          });
+
+          transferingBoardIndex = null;
+        } else {
+          for (const board of boards) {
+            const rect = board.getBoundingClientRect();
+
+            if (isMouseOverElementRect(rect, mouseX, mouseY)) {
+              board.classList.add("border-white");
+              const boardIndex = board.getAttribute("data-board-index");
+              transferingBoardIndex = boardIndex != null ? +boardIndex : null;
+            } else {
+              board.classList.remove("border-white");
+            }
+          }
+        }
+
+        currentDragItem.style.transform = `translate(${posX}px, ${posY}px)`;
+      };
+
+      const dragEnd = (e: PointerEvent) => {
+        onPointerUp(e);
+
+        currentDragItem.removeAttribute("style");
+        container.removeChild(temporaryClonedElement);
+
+        items.forEach((item) => item.removeAttribute("style"));
+
+        boards.forEach((board) => {
+          board.classList.remove("border-white");
+        });
+
+        if (destinationIndex != undefined) {
+          taskStore.reorderTasks(sourceIndex, destinationIndex, boardId);
+        }
+
+        if (transferingBoardIndex != null) {
+          const newBoard = taskStore.taskItems[transferingBoardIndex];
+          if (newBoard) {
+            const taskId =
+              taskStore.taskItems[boardIndex].tasks[sourceIndex].id;
+            taskStore.transferTask(taskId, boardId, newBoard.id);
+          }
+        }
+
+        transferingBoardIndex = null;
+      };
+
+      document.body.onpointerup = dragEnd;
+      document.body.onpointermove = dragMove;
     };
+
+    useEffect(() => {
+      boardBoundingRect.current = boardRef.current?.getBoundingClientRect();
+
+      return () => {};
+    }, []);
 
     return (
       <div
         ref={boardRef}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
+        data-board-index={boardIndex}
         className={clsx(
-          "flex flex-col transition relative rounded-lg border-2 border-dashed border-transparent bg-white/10",
-          isDraggingOver ? "border-white" : "",
+          "board flex flex-col transition relative rounded-lg border-2 border-dashed border-transparent bg-white/10",
           className
         )}
       >
         <div className="pt-2 pl-2">{boardTitle}</div>
 
-        <div className="tasks flex-grow mt-5">
+        <div ref={tasksContainerRef} className="tasks flex-grow mt-5">
           {taskList.length ? (
             taskList.map((task, i) => (
               <TaskItem
                 key={task.id}
                 task={task}
+                onPointerDown={(e) => handleDragItemStart(e, i)}
                 boardId={boardId}
                 index={i}
                 data-index={i}

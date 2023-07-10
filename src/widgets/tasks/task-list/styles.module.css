@@ -1,3 +1,0 @@
-.flow_root :global .dragging {
-  background-color: rgba(var(--task-card-color), 0.1);
-}

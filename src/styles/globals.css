@@ -29,4 +29,10 @@ body {
       rgb(var(--background-end-rgb))
     )
     rgb(var(--background-start-rgb));
+
+  &.ptr-events-none {
+    touch-action: none;
+    -ms-touch-action: none;
+    overflow: hidden;
+  }
 }

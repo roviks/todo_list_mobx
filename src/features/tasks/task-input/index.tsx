@@ -1,5 +1,3 @@
-"use client";
-
 import { DetailedHTMLProps, InputHTMLAttributes, useState } from "react";
 
 import { useTaskStore } from "../model";

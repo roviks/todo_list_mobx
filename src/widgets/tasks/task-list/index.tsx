@@ -1,5 +1,3 @@
-"use client";
-
 import clsx from "clsx";
 import { Fragment, useEffect } from "react";
 import { observer } from "mobx-react";
@@ -7,7 +5,6 @@ import { observer } from "mobx-react";
 import { TasksBoard } from "~/features/tasks";
 import { useTaskStore } from "~/features/tasks/model";
 
-import styles from "./styles.module.css";
 import { Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 
@@ -34,19 +31,20 @@ export const TaskList = observer(() => {
 
   return (
     <div
-      className={`overflow-hidden overflow-x-auto min-h-full flex-grow flex flex-col ${styles.flow_root}`}
+      className={`overflow-hidden overflow-x-auto min-h-full flex-grow flex flex-col`}
     >
       {taskStore.taskItems.length ? (
         <div
           className={`flex flex-grow`}
           style={{
-            marginBottom: offset,
+            marginBottom: offset + 100,
           }}
         >
           {taskStore.taskItems.map((board, index) => {
             const taskItem = (
               <TasksBoard
                 key={board.id}
+                index={index}
                 className={clsx(
                   "flex-grow-0 flex-shrink-0 basis-[300px]",
                   taskStore.taskItems.length - 1 !== index ? "mr-3" : ""

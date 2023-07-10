@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, type PropsWithChildren } from "react";
 import { useServerInsertedHTML } from "next/navigation";
 import { createCache, extractStyle, StyleProvider } from "@ant-design/cssinjs";

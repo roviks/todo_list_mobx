@@ -13,15 +13,17 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 15px;
-  transition: var(--speed);
 
   &:hover {
     background-color: rgba(var(--task-card-color), 0.5);
   }
+}
 
-  &.dragging {
-    opacity: 0;
-  }
+.dragging {
+  pointer-events: none;
+  touch-action: none;
+  -ms-touch-action: none;
+  box-shadow: 0px 2px 5px rgba(var(--text-color-rgb), 0.1);
 }
 
 .Task_card:last-child {

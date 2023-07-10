@@ -21,15 +21,7 @@ class TaskStore {
       {
         id: "backlog",
         name: "Backlog",
-        tasks: [
-          {
-            id: nanoid(),
-            createdAt: new Date(),
-            status: "backlog",
-            title: "Hello world",
-            deletedAt: null,
-          },
-        ],
+        tasks: [],
       },
       {
         id: "done",

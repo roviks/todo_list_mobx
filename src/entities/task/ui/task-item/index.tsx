@@ -3,9 +3,7 @@ import {
   useState,
   type PropsWithChildren,
   Fragment,
-  useRef,
   MouseEvent,
-  DragEvent,
   DetailedHTMLProps,
   HTMLAttributes,
 } from "react";
@@ -18,7 +16,6 @@ import {
 
 import { useTaskStore } from "~/features/tasks/model";
 import { TaskInput } from "~/features/tasks";
-import { useTasksDnDStore } from "~/features/tasks-dnd/model";
 
 import { type ITask } from "../../model/types";
 import styles from "./styles.module.css";
@@ -37,10 +34,8 @@ export const TaskItem = ({
   ...props
 }: PropsWithChildren<TaskItemProps>) => {
   const [editMode, setEditMode] = useState(false);
-  const [isDragged, setIsDragged] = useState(false);
 
   const taskStore = useTaskStore();
-  const taskDnDStore = useTasksDnDStore();
 
   const handleDeleteTask = (e: MouseEvent) => {
     e.stopPropagation();
@@ -54,31 +49,17 @@ export const TaskItem = ({
     setEditMode((prev) => !prev);
   };
 
-  const handleDragStart = (e: DragEvent) => {
-    if (editMode) {
-      e.preventDefault();
-      return;
-    }
-    taskDnDStore.initDraggedItem(task.id, boardId, index);
-    setIsDragged(true);
-  };
-
-  const handleDragEnd = (e: DragEvent) => {
-    taskDnDStore.clearDraggedItem();
-    setIsDragged(false);
-  };
-
   return (
     <div
       {...props}
-      className={clsx(
-        styles.Task_card,
-        isDragged ? "opacity-70" : "",
-        className
-      )}
-      draggable
-      onDragEnd={handleDragEnd}
-      onDragStart={handleDragStart}
+      className={clsx(styles.Task_card, className)}
+      onPointerDown={
+        editMode
+          ? (e) => {
+              e.stopPropagation();
+            }
+          : props.onPointerDown
+      }
     >
       {editMode ? (
         <Fragment>
