@@ -39,12 +39,14 @@ export const TaskItem = ({
 
   const handleDeleteTask = (e: MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
 
     taskStore.deleteTask(task.id, boardId);
   };
 
   const handleToggleEditMode = (e?: MouseEvent) => {
     e?.stopPropagation();
+    e?.preventDefault();
 
     setEditMode((prev) => !prev);
   };
@@ -74,6 +76,7 @@ export const TaskItem = ({
           <button
             className="inline-flex items-center w-[35px] h-[35px] justify-center p-1"
             onClick={handleToggleEditMode}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <CloseOutlined />
           </button>
@@ -83,6 +86,7 @@ export const TaskItem = ({
           <button
             className="inline-flex items-center flex-shrink-0 w-[35px] h-[35px] justify-center p-1"
             onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <HolderOutlined />
           </button>
@@ -94,6 +98,7 @@ export const TaskItem = ({
             <button
               className="inline-flex w-[35px] h-[35px] items-center justify-center p-1 rounded-md "
               onClick={handleToggleEditMode}
+              onPointerDown={(e) => e.stopPropagation()}
             >
               <EditOutlined />
             </button>
@@ -101,6 +106,7 @@ export const TaskItem = ({
             <button
               className="inline-flex w-[35px] h-[35px] text-red-400 items-center justify-center p-1 rounded-md "
               onClick={handleDeleteTask}
+              onPointerDown={(e) => e.stopPropagation()}
             >
               <DeleteOutlined />
             </button>
